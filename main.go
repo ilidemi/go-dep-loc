@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -18,9 +19,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const dotPath = `C:\Program Files\Graphviz\bin\dot.exe`
-const sccPath = `C:\Portable\scc.exe`
-
 var knownHosts = []string{"github.com"}
 
 type NodeColor struct {
@@ -35,11 +33,27 @@ var knownColorsByAuthor = map[string]NodeColor{
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("usage: gopackages <package>")
+	dotPath := flag.String("dot", "", "path to GraphViz executable")
+	sccPath := flag.String("scc", "", "path to scc executable")
+	fontName := flag.String("fontname", "Inter", "name of the font to use")
+	flag.Parse()
+
+	if *dotPath == "" {
+		fmt.Println("Expected path to GraphViz executable as -dot")
 		os.Exit(1)
 	}
-	rootPath := os.Args[1]
+
+	if *sccPath == "" {
+		fmt.Println("Expected path to scc executable as -scc")
+		os.Exit(1)
+	}
+
+	if len(flag.Args()) != 1 {
+		fmt.Println("Expected one package name")
+		os.Exit(1)
+	}
+
+	rootPath := flag.Args()[0]
 	rootName := filepath.Base(rootPath)
 
 	//
@@ -176,7 +190,7 @@ func main() {
 			for _, goFile := range batch {
 				sccArgs = append(sccArgs, goFile)
 			}
-			sccCmd := exec.Command(sccPath, sccArgs...)
+			sccCmd := exec.Command(*sccPath, sccArgs...)
 			sccCmds = append(sccCmds, SccCommand{
 				Id:      len(sccCmds),
 				Module:  module,
@@ -334,8 +348,8 @@ func main() {
 
 		fmt.Fprintf(
 			initialGraphFile,
-			"    \"%s\" [width=%f,height=%f,fixedsize=true,fontsize=%f,label=\"%s\",fillcolor=\"%s\",color=\"%s\",fontname=\"Inter\"];\n",
-			module, moduleSize, moduleSize, fontSize, label, nodeColor.FillColor, nodeColor.BorderColor,
+			"    \"%s\" [width=%f,height=%f,fixedsize=true,fontsize=%f,label=\"%s\",fillcolor=\"%s\",color=\"%s\",fontname=\"%s\"];\n",
+			module, moduleSize, moduleSize, fontSize, label, nodeColor.FillColor, nodeColor.BorderColor, *fontName,
 		)
 		for dependency := range dependencies {
 			fmt.Fprintf(initialGraphFile, "    \"%s\" -> \"%s\";\n", module, dependency)
@@ -353,7 +367,7 @@ func main() {
 	// Layout
 	//
 
-	layoutCmd := exec.Command(dotPath, initialGraphPath)
+	layoutCmd := exec.Command(*dotPath, initialGraphPath)
 	layoutedGraphBytes, err := layoutCmd.Output()
 	if err != nil {
 		panic(err)
@@ -412,7 +426,7 @@ func main() {
 
 	render := func(layoutedGraphPath string, rootName string, format string) {
 		outPath := rootName + "." + format
-		cmd := exec.Command(dotPath, "-T"+format, "-o"+outPath, layoutedGraphPath)
+		cmd := exec.Command(*dotPath, "-T"+format, "-o"+outPath, layoutedGraphPath)
 		stdoutStderr, err := cmd.CombinedOutput()
 		if err != nil {
 			if stdoutStderr != nil {

@@ -1,4 +1,4 @@
-module gopackages
+module godeploc
 
 go 1.20
 
