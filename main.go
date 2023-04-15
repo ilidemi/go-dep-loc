@@ -438,5 +438,5 @@ func main() {
 	wg.Wait()
 
 	fmt.Println("LOC total:", totalLineCount)
-	fmt.Println("LOC sans stdlib:", lineCountSansStdlib)
+	fmt.Println("LOC not counting stdlib:", lineCountSansStdlib)
 }
